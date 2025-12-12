@@ -10,45 +10,45 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    # এখানে services সেকশনটি বাদ দেওয়া হয়েছে
-    
+    # লক্ষ্য করো: এখানে কোনো 'services' সেকশন নেই। আমরা এটা স্টেপের ভেতরে চালাবো।
+
     steps:
-    # ১. কোড চেকআউট
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # ২. MinIO সার্ভিস ম্যানুয়ালি চালু করা (FIXED STEP)
-    # আমরা সরাসরি ডকার কমান্ড দিয়ে সার্ভার চালু করছি যাতে কোনো এরর না হয়
-    - name: Start MinIO Service
+    - name: Start MinIO Service (Manual)
       run: |
+        # ডকার কন্টেইনার চালু করা হচ্ছে
         docker run -d -p 9000:9000 --name minio \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
           minio/minio server /data
         
-        echo "Waiting for MinIO to start..."
-        sleep 10
+        # একটু সময় দেওয়া হচ্ছে যাতে সার্ভার রেডি হয়
+        echo "Waiting 15 seconds for MinIO..."
+        sleep 15
+        
+        # ডিবাগ: চেক করা হচ্ছে কন্টেইনার চলছে কিনা
+        docker ps
+        
+        # ডিবাগ: কানেকশন চেক
+        curl -v http://localhost:9000/minio/health/live || echo "Warning: MinIO check failed, but proceeding..."
 
-    # ৩. Node.js সেটআপ
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24'
         cache: 'npm'
 
-    # ৪. ডিপেন্ডেন্সি ইন্সটল
     - name: Install dependencies
       run: npm ci
 
-    # ৫. লিন্টিং চেক
     - name: Run Lint
       run: npm run lint
 
-    # ৬. ফরম্যাটিং চেক
     - name: Check Formatting
       run: npm run format:check
 
-    # ৭. E2E টেস্ট রান
     - name: Run E2E Tests
       run: npm run test:e2e
       env:
@@ -60,6 +60,5 @@ jobs:
         S3_BUCKET_NAME: downloads
         S3_FORCE_PATH_STYLE: true
 
-    # ৮. ডকার বিল্ড চেক
     - name: Build Docker Image
       run: docker build . -f docker/Dockerfile.prod -t micro-ops-api:latest
