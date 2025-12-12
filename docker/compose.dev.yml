@@ -24,7 +24,7 @@ services:
       - "4318:4318"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
-# S3 Compatible Storage (MinIO)
+  # S3 Compatible Storage (MinIO)
   minio:
     image: minio/minio:latest
     container_name: micro_ops_minio

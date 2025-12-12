@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
 
 jobs:
   build-and-test:
@@ -13,52 +13,52 @@ jobs:
     # লক্ষ্য করো: এখানে কোনো 'services' সেকশন নেই। আমরা এটা স্টেপের ভেতরে চালাবো।
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Start MinIO Service (Manual)
-      run: |
-        # ডকার কন্টেইনার চালু করা হচ্ছে
-        docker run -d -p 9000:9000 --name minio \
-          -e MINIO_ROOT_USER=minioadmin \
-          -e MINIO_ROOT_PASSWORD=minioadmin \
-          minio/minio server /data
-        
-        # একটু সময় দেওয়া হচ্ছে যাতে সার্ভার রেডি হয়
-        echo "Waiting 15 seconds for MinIO..."
-        sleep 15
-        
-        # ডিবাগ: চেক করা হচ্ছে কন্টেইনার চলছে কিনা
-        docker ps
-        
-        # ডিবাগ: কানেকশন চেক
-        curl -v http://localhost:9000/minio/health/live || echo "Warning: MinIO check failed, but proceeding..."
+      - name: Start MinIO Service (Manual)
+        run: |
+          # ডকার কন্টেইনার চালু করা হচ্ছে
+          docker run -d -p 9000:9000 --name minio \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio server /data
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '24'
-        cache: 'npm'
+          # একটু সময় দেওয়া হচ্ছে যাতে সার্ভার রেডি হয়
+          echo "Waiting 15 seconds for MinIO..."
+          sleep 15
 
-    - name: Install dependencies
-      run: npm ci
+          # ডিবাগ: চেক করা হচ্ছে কন্টেইনার চলছে কিনা
+          docker ps
 
-    - name: Run Lint
-      run: npm run lint
+          # ডিবাগ: কানেকশন চেক
+          curl -v http://localhost:9000/minio/health/live || echo "Warning: MinIO check failed, but proceeding..."
 
-    - name: Check Formatting
-      run: npm run format:check
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
 
-    - name: Run E2E Tests
-      run: npm run test:e2e
-      env:
-        NODE_ENV: test
-        PORT: 3000
-        S3_ENDPOINT: http://localhost:9000
-        S3_ACCESS_KEY_ID: minioadmin
-        S3_SECRET_ACCESS_KEY: minioadmin
-        S3_BUCKET_NAME: downloads
-        S3_FORCE_PATH_STYLE: true
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build Docker Image
-      run: docker build . -f docker/Dockerfile.prod -t micro-ops-api:latest
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Check Formatting
+        run: npm run format:check
+
+      - name: Run E2E Tests
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          S3_ENDPOINT: http://localhost:9000
+          S3_ACCESS_KEY_ID: minioadmin
+          S3_SECRET_ACCESS_KEY: minioadmin
+          S3_BUCKET_NAME: downloads
+          S3_FORCE_PATH_STYLE: true
+
+      - name: Build Docker Image
+        run: docker build . -f docker/Dockerfile.prod -t micro-ops-api:latest
