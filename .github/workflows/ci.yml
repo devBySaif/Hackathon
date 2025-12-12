@@ -1,75 +1,60 @@
-name: CI
+name: CI Pipeline
 
 on:
   push:
-    branches: [main, master]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [main, master]
+    branches: [ "main", "master" ]
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-24.04
-    container:
-      image: node:24-slim
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  build-and-test:
+    runs-on: ubuntu-latest
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Check formatting
-        run: npm run format:check
-
-  test:
-    name: E2E Tests
-    runs-on: ubuntu-24.04
-    needs: lint
-    container:
-      image: node:24-slim
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run E2E tests
-        run: npm run test:e2e
+    services:
+      minio:
+        image: minio/minio:latest
         env:
-          NODE_ENV: development
-          PORT: 3000
-          S3_REGION: us-east-1
-          S3_BUCKET_NAME: ""
-          S3_FORCE_PATH_STYLE: "true"
-          SENTRY_DSN: ""
-          OTEL_EXPORTER_OTLP_ENDPOINT: ""
-          REQUEST_TIMEOUT_MS: "30000"
-          RATE_LIMIT_WINDOW_MS: "60000"
-          RATE_LIMIT_MAX_REQUESTS: "100"
-          CORS_ORIGINS: "*"
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --name minio
 
-  build:
-    name: Build Docker Image
-    runs-on: ubuntu-24.04
-    needs: test
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
 
-      - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.prod
-          push: false
-          tags: delineate-hackathon-challenge:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run Lint
+      run: npm run lint
+
+    - name: Check Formatting
+      run: npm run format:check
+
+ 
+    - name: Run E2E Tests
+      run: npm run test:e2e
+      env:
+        NODE_ENV: test
+        PORT: 3000
+        S3_ENDPOINT: http://localhost:9000
+        S3_ACCESS_KEY_ID: minioadmin
+        S3_SECRET_ACCESS_KEY: minioadmin
+        S3_BUCKET_NAME: downloads
+        S3_FORCE_PATH_STYLE: true
+
+    - name: Build Docker Image
+      run: docker build . -f docker/Dockerfile.prod -t micro-ops-api:latest

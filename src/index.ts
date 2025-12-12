@@ -14,6 +14,13 @@ import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
 import { rateLimiter } from "hono-rate-limiter";
 
+// Extend Hono context variable types
+declare module "hono" {
+  interface ContextVariableMap {
+    requestId: string;
+  }
+}
+
 // Helper for optional URL that treats empty string as undefined
 const optionalUrl = z
   .string()
