@@ -12,7 +12,7 @@ services:
     environment:
       - NODE_ENV=production
     restart: unless-stopped
-# S3 Compatible Storage (MinIO) for Production
+  # S3 Compatible Storage (MinIO) for Production
   minio:
     image: minio/minio:latest
     container_name: micro_ops_minio_prod
