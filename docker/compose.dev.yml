@@ -5,25 +5,33 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
+    container_name: micro_ops_api
     ports:
       - "3000:3000"
     volumes:
       - ../src:/app/src
+      - ../.env:/app/.env
     env_file:
       - ../.env
     environment:
       - NODE_ENV=development
+      # ডকারের ভেতর থেকে MinIO কে চেনার জন্য সার্ভিস নাম ব্যবহার করতে হবে
+      - S3_ENDPOINT=http://minio:9000
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://delineate-jaeger:4318
+      - CORS_ORIGINS=*
     depends_on:
       - delineate-jaeger
+      - minio
 
   delineate-jaeger:
     image: jaegertracing/all-in-one:latest
+    container_name: micro_ops_jaeger
     ports:
       - "16686:16686"
       - "4318:4318"
     environment:
       - COLLECTOR_OTLP_ENABLED=true
+
   # S3 Compatible Storage (MinIO)
   minio:
     image: minio/minio:latest
@@ -40,6 +48,19 @@ services:
       interval: 5s
       timeout: 10s
       retries: 5
+
+  # React Frontend Service
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: micro_ops_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - delineate-app
+    environment:
+      - VITE_API_URL=http://localhost:3000
 
   # Init container to create the 'downloads' bucket automatically
   createbuckets:
